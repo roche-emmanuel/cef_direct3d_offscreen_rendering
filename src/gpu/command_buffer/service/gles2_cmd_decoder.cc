@@ -20329,45 +20329,25 @@ error::Error GLES2DecoderImpl::HandleNervCopyTextureToSharedHandle(
       return error::kNoError;
     }
 
-    // This section below is roughly reproducing the behavior observed in gpu_command_buffer_stub.cc
-
-    // We create a default offscreen surface:
-    scoped_refptr<gl::GLSurface> offscreen_surface = gl::init::CreateOffscreenGLSurface(gfx::Size());
-
-    // gl::GLSurfaceFormat surface_format = offscreen_surface->GetFormat();
-    gpu::gles2::ContextCreationAttribHelper attrib_helper = gpu::gles2::ContextCreationAttribHelper();
-
-    gl::GLContextAttribs attribs = gpu::gles2::GenerateGLContextAttribs(attrib_helper , GetContextGroup()->gpu_preferences());
-
-    // First simply try to create a new shared context the regular way:
-    scoped_refptr<gl::GLContext> testContext = gl::InitializeGLContext(new gl::GLContextEGL(sgroup), offscreen_surface.get(), attribs);
-
-    if(testContext == nullptr) {
-      NV_LOG("GLES2DecoderImpl: ERROR: Cannot create default test 1 EGL context!");
-    }
-    else {
-      NV_LOG2("GLES2DecoderImpl: ERROR: Default test 1 EGL context create successfully.");
-    }
-
     // Now try to rebuild that context "manually":
-    void* tdisplay = offscreen_surface->GetDisplay();
-    void* tconfig = offscreen_surface->GetConfig();
+    // void* tdisplay = offscreen_surface->GetDisplay();
+    // void* tconfig = offscreen_surface->GetConfig();
     using namespace gl;
 
     // Check if ES3 was requested:
-    EGLint config_renderable_type = 0;
-    if (!eglGetConfigAttrib(tdisplay, tconfig, EGL_RENDERABLE_TYPE,&config_renderable_type)) {
-      NV_LOG("GLES2DecoderImpl: ERROR: Cannot retrieve renderable type from config.");
-      return error::kNoError;
-    }
+    // EGLint config_renderable_type = 0;
+    // if (!eglGetConfigAttrib(tdisplay, tconfig, EGL_RENDERABLE_TYPE,&config_renderable_type)) {
+    //   NV_LOG("GLES2DecoderImpl: ERROR: Cannot retrieve renderable type from config.");
+    //   return error::kNoError;
+    // }
 
-    if ((config_renderable_type & EGL_OPENGL_ES3_BIT) == 0) {
-      NV_LOG2("GLES2DecoderImpl: support for ES3 NOT requested.");
-    }
+    // if ((config_renderable_type & EGL_OPENGL_ES3_BIT) == 0) {
+    //   NV_LOG2("GLES2DecoderImpl: support for ES3 NOT requested.");
+    // }
 
-    if ((config_renderable_type & EGL_OPENGL_ES2_BIT) == 0) {
-      NV_LOG2("GLES2DecoderImpl: support for ES2 NOT requested.");
-    }
+    // if ((config_renderable_type & EGL_OPENGL_ES2_BIT) == 0) {
+    //   NV_LOG2("GLES2DecoderImpl: support for ES2 NOT requested.");
+    // }
 
     // Prepare the context attributes:
     std::vector<EGLint> context_attributes;
@@ -20463,9 +20443,9 @@ error::Error GLES2DecoderImpl::HandleNervCopyTextureToSharedHandle(
     EGLint contextAttribs[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE, EGL_NONE};
 
     // Check that the display is the one we would expect:
-    if(egl_display != tdisplay) {
-      NV_LOG("GLES2DecoderImpl: Mismatch on context displays!");
-    }
+    // if(egl_display != tdisplay) {
+    //   NV_LOG("GLES2DecoderImpl: Mismatch on context displays!");
+    // }
 
     // If we have a share group, then we can try to create our context from it:
     NV_LOG2("GLES2DecoderImpl: trying to create shared context with share group and nvConfig...");
@@ -20475,28 +20455,27 @@ error::Error GLES2DecoderImpl::HandleNervCopyTextureToSharedHandle(
     // nvContext = eglCreateContext(egl_display, nvConfig, curContext, contextAttribs);
     if(nvContext == EGL_NO_CONTEXT) {
       NV_LOG("GLES2DecoderImpl: ERROR: Cannot create EGL rendering context with nvConfig: "<< ui::GetLastEGLErrorString());
-      // return error::kNoError;
+      return error::kNoError;
       // nvContext = curContext; // We use the current context in that case. // doesn't really work ?
       
       // Try to create the config with the proper config:
-      nvContext = eglCreateContext(egl_display, tconfig, sgroup->GetHandle(), context_attributes.data());
+      // nvContext = eglCreateContext(egl_display, tconfig, sgroup->GetHandle(), context_attributes.data());
     }
 
     // Try to create the context again with the provided config:
-    if(nvContext == EGL_NO_CONTEXT) {
-      NV_LOG("GLES2DecoderImpl: ERROR: Cannot create EGL rendering context with tconfig: "<< ui::GetLastEGLErrorString());
+    // if(nvContext == EGL_NO_CONTEXT) {
+    //   NV_LOG("GLES2DecoderImpl: ERROR: Cannot create EGL rendering context with tconfig: "<< ui::GetLastEGLErrorString());
 
-      // Try with the tdisplay:
-      nvContext = eglCreateContext(tdisplay, tconfig, sgroup->GetHandle(), context_attributes.data());
-    }
+    //   // Try with the tdisplay:
+    //   nvContext = eglCreateContext(tdisplay, tconfig, sgroup->GetHandle(), context_attributes.data());
+    // }
 
-    if(nvContext == EGL_NO_CONTEXT) {
-      NV_LOG("GLES2DecoderImpl: ERROR: Cannot create EGL rendering context with tdisplay: "<< ui::GetLastEGLErrorString());
+    // if(nvContext == EGL_NO_CONTEXT) {
+    //   NV_LOG("GLES2DecoderImpl: ERROR: Cannot create EGL rendering context with tdisplay: "<< ui::GetLastEGLErrorString());
 
-      // Try using the default test config:
-      nvContext = testContext->GetHandle();
-    }
-
+    //   // Try using the default current config:
+    //   nvContext = curContext;
+    // }
   }
 
   // First we should create the EGLSurface for this handle if it doesn't exist yet:
@@ -20512,8 +20491,6 @@ error::Error GLES2DecoderImpl::HandleNervCopyTextureToSharedHandle(
         EGL_HEIGHT, 1080,
         EGL_NONE
     };
-        // EGL_TEXTURE_TARGET, EGL_TEXTURE_2D,
-        // EGL_TEXTURE_FORMAT, EGL_TEXTURE_RGBA,
 
     NV_LOG2("GLES2DecoderImpl: Calling CreatePBufferFromClientBuffer().");
     surface = eglCreatePbufferFromClientBuffer(egl_display, EGL_D3D_TEXTURE_2D_SHARE_HANDLE_ANGLE, handle, nvConfig, pBufferAttributes);
@@ -20580,15 +20557,6 @@ error::Error GLES2DecoderImpl::HandleNervCopyTextureToSharedHandle(
   else {
     NV_LOG("GLES2DecoderImpl: ERROR: Cannot retrieve service texture for client id: "<<texture_id);
   }
-
-  // float v1 = 1.0f * (rand()/(float)RAND_MAX);
-  // float v2 = 1.0f * (rand()/(float)RAND_MAX);
-  // NV_LOG2("GLES2DecoderImpl: Clearing shared handle surface with color: ("<<v1<<","<<v2<<",0.0)");
-
-  // First we try to just display some fixed color (red):
-  // glViewport(0, 0, 1920, 1080);
-  // glClearColor(v1, v2, 0.0f, 1.0f);
-  // glClear(GL_COLOR_BUFFER_BIT);
 
   // Now that we are done, we restore the previous current context/surfaces:
   eglMakeCurrent(display, drawSurface, readSurface, curContext);
