@@ -78,7 +78,7 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
     return false;
   }
 
-  NV_LOG2("Initializing EGL Context...");
+  NV_LOG("Initializing EGL Context...");
 
   EGLint context_client_major_version = attribs.client_major_es_version;
   EGLint context_client_minor_version = attribs.client_minor_es_version;
@@ -102,13 +102,13 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
     context_attributes.push_back(EGL_CONTEXT_MINOR_VERSION);
     context_attributes.push_back(context_client_minor_version);
 
-    NV_LOG2("EGL Context version: "<<context_client_major_version<<"."<<context_client_minor_version);
+    NV_LOG("EGL Context version: "<<context_client_major_version<<"."<<context_client_minor_version);
 
   } else {
     context_attributes.push_back(EGL_CONTEXT_CLIENT_VERSION);
     context_attributes.push_back(context_client_major_version);
 
-    NV_LOG2("EGL Context version (major only): "<<context_client_major_version);
+    NV_LOG("EGL Context version (major only): "<<context_client_major_version);
 
     // Can only request 2.0 or 3.0 contexts without the EGL_KHR_create_context
     // extension, DCHECK to make sure we update the code to support devices
@@ -135,7 +135,7 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
 
   if (GLSurfaceEGL::IsCreateContextBindGeneratesResourceSupported()) {
     context_attributes.push_back(EGL_CONTEXT_BIND_GENERATES_RESOURCE_CHROMIUM);
-    NV_LOG2("EGL Context bind_generates_resources set to: "<< (attribs.bind_generates_resource ? "TRUE" : "FALSE"));
+    NV_LOG("EGL Context bind_generates_resources set to: "<< (attribs.bind_generates_resource ? "TRUE" : "FALSE"));
     context_attributes.push_back(attribs.bind_generates_resource ? EGL_TRUE
                                                                  : EGL_FALSE);
   } else {
@@ -144,7 +144,7 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
 
   if (GLSurfaceEGL::IsCreateContextWebGLCompatabilitySupported()) {
     context_attributes.push_back(EGL_CONTEXT_WEBGL_COMPATIBILITY_ANGLE);
-    NV_LOG2("EGL Context webgl_compatibility_context set to: "<< (attribs.webgl_compatibility_context  ? "TRUE" : "FALSE"));
+    NV_LOG("EGL Context webgl_compatibility_context set to: "<< (attribs.webgl_compatibility_context  ? "TRUE" : "FALSE"));
     context_attributes.push_back(
         attribs.webgl_compatibility_context ? EGL_TRUE : EGL_FALSE);
   } else {
@@ -155,12 +155,12 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
     // Medium priority is the default, only set the attribute if
     // a different priority is requested.
     if (attribs.context_priority == ContextPriorityLow) {
-      NV_LOG2("EGL Context priority set to LOW");
+      NV_LOG("EGL Context priority set to LOW");
       DVLOG(1) << __FUNCTION__ << ": setting ContextPriorityLow";
       context_attributes.push_back(EGL_CONTEXT_PRIORITY_LEVEL_IMG);
       context_attributes.push_back(EGL_CONTEXT_PRIORITY_LOW_IMG);
     } else if (attribs.context_priority == ContextPriorityHigh) {
-      NV_LOG2("EGL Context priority set to HIGH");
+      NV_LOG("EGL Context priority set to HIGH");
       DVLOG(1) << __FUNCTION__ << ": setting ContextPriorityHigh";
       context_attributes.push_back(EGL_CONTEXT_PRIORITY_LEVEL_IMG);
       context_attributes.push_back(EGL_CONTEXT_PRIORITY_HIGH_IMG);
@@ -169,7 +169,7 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
 
   if (GLSurfaceEGL::HasEGLExtension("EGL_ANGLE_display_texture_share_group")) {
     context_attributes.push_back(EGL_DISPLAY_TEXTURE_SHARE_GROUP_ANGLE);
-    NV_LOG2("EGL Context global_texture_share_group set to: "<< (attribs.global_texture_share_group  ? "TRUE" : "FALSE"));
+    NV_LOG("EGL Context global_texture_share_group set to: "<< (attribs.global_texture_share_group  ? "TRUE" : "FALSE"));
     context_attributes.push_back(
         attribs.global_texture_share_group ? EGL_TRUE : EGL_FALSE);
   } else {

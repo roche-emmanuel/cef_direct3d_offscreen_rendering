@@ -655,7 +655,7 @@ bool GpuCommandBufferStub::Initialize(
           CommandBufferNamespace::GPU_IO, command_buffer_id_, sequence_id_);
 
   if (offscreen) {
-    NV_LOG2("GpuCommandBufferStub: using offscreen rendering.");
+    NV_LOG("GpuCommandBufferStub: using offscreen rendering.");
 
     // Do we want to create an offscreen rendering context suitable
     // for directly drawing to a separately supplied surface? In that
@@ -693,7 +693,7 @@ bool GpuCommandBufferStub::Initialize(
       surface_ = default_surface;
     }
   } else {
-    NV_LOG2("GpuCommandBufferStub: using onscreen rendering.");
+    NV_LOG("GpuCommandBufferStub: using onscreen rendering.");
     switch (init_params.attribs.color_space) {
       case gles2::COLOR_SPACE_UNSPECIFIED:
         surface_format.SetColorSpace(

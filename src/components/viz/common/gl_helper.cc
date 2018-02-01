@@ -775,13 +775,13 @@ void GLHelper::NervCopyMailboxToSharedHandle(
   GLuint texture_id = ConsumeMailboxToTexture(src_mailbox, sync_token);
   
   // Do something with the texture ID and the handle here.
-  // std::cout << "Should copy the texture with id: "<<texture_id<<std::endl;
+  std::cout << "Should copy the texture with id: "<<texture_id<<std::endl;
   gl_->NervCopyTextureToSharedHandle(texture_id, (GLuint64)sharedHandle);
-  // std::cout << "Done requesting texture copy."<<std::endl;
+  std::cout << "Done requesting texture copy."<<std::endl;
   // Release the texture_id
   // gl_->DeleteTextures(1, &texture_id); // Should not be needed here as we will
   // delete the texture directly after usage in the previous call.
-  // Flush this command: This helps in executing the command immediately instead of... never!
+  // Flush this command: This helps in executing the command immediately.
   gl_->Flush();
 }
 

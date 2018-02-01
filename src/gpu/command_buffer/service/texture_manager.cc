@@ -556,7 +556,7 @@ void Texture::RemoveTextureRef(TextureRef* ref, bool have_context) {
   DCHECK_EQ(result, 1u);
   if (refs_.empty()) {
     if (have_context) {
-      NV_LOG2("Deleting service texture: "<<owned_service_id_);
+      NV_LOG("Deleting service texture: "<<owned_service_id_);
       glDeleteTextures(1, &owned_service_id_);
     }
     delete this;

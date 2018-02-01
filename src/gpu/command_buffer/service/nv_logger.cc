@@ -12,31 +12,23 @@
 class nvLogger
 {
 public:
-  nvLogger(): _file("cef_nv.log"), _initialized(false), _logLevel(0) {
-    // Configure the log level from the environment variable if available:
-    char* buf;
-	  buf = getenv("NV_CEF_LOG_LEVEL");
-	  _logLevel = buf ? atoi(buf) : 0;
-  }
+  nvLogger(): _file("cef_nv.log"), _initialized(false) {}
 
   ~nvLogger() {
     if(_initialized) {
-      log(1,"Destroying nvLogger.");
+      log("Destroying nvLogger.");
       _stream.close();
     }
   }
 
   void init();
 
-  void log(unsigned int level, const std::string& msg);
+  void log(const std::string& msg);
 
 private:
   std::string _file;
   bool _initialized;
   std::ofstream _stream;
-
-  // #4: Adding support for log level:
-  unsigned int _logLevel;
 };
 
 void nvLogger::init() {
@@ -47,16 +39,11 @@ void nvLogger::init() {
   _stream.open(_file.c_str(), std::ofstream::out);
 
   _initialized = true;
-  log(1,"nvLogger initialized.");
+  log("nvLogger initialized.");
 }
 
-void nvLogger::log(unsigned int level, const std::string& msg)
+void nvLogger::log(const std::string& msg)
 {
-  // Check if the level is acceptable:
-  if(level > _logLevel) {
-    return; // We discard this output.
-  }
-
   if(!_initialized) {
     init();
   }
@@ -74,9 +61,9 @@ nvLogger gLogger;
 
 namespace nv {
 
-void nvLOG(unsigned int level, const std::string& msg)
+void nvLOG(const std::string& msg)
 {
-  gLogger.log(level, msg);
+  gLogger.log(msg);
 }
 
 }

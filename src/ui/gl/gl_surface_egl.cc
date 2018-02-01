@@ -589,12 +589,12 @@ bool GLSurfaceEGL::InitializeOneOff(EGLNativeDisplayType native_display) {
       HasEGLExtension("EGL_KHR_surfaceless_context");
 
   if (g_egl_surfaceless_context_supported) {
-    // NV_LOG2("NervCEF: Force disabling EGL surfaceless context support.");
+    // NV_LOG("NervCEF: Force disabling EGL surfaceless context support.");
     // g_egl_surfaceless_context_supported = false;
-    NV_LOG2("NervCEF: EGL surfaceless context support is available.");
+    NV_LOG("NervCEF: EGL surfaceless context support is available.");
   }
   else {
-    NV_LOG2("NervCEF: EGL surfaceless context support is not available: all OK for us.");
+    NV_LOG("NervCEF: EGL surfaceless context support is not available: all OK for us.");
   }
 
   if (g_egl_surfaceless_context_supported) {

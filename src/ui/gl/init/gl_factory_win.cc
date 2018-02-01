@@ -112,7 +112,7 @@ scoped_refptr<GLSurface> CreateNativeViewGLSurfaceEGL(
 scoped_refptr<GLSurface> CreateOffscreenGLSurfaceWithFormat(
     const gfx::Size& size, GLSurfaceFormat format) {
   TRACE_EVENT0("gpu", "gl::init::CreateOffscreenGLSurface");
-  NV_LOG2("Reached: CreateOffscreenGLSurfaceWithFormat() function.");
+  NV_LOG("Reached: CreateOffscreenGLSurfaceWithFormat() function.");
   switch (GetGLImplementation()) {
     case kGLImplementationOSMesaGL:
       format.SetDefaultPixelLayout(GLSurfaceFormat::PIXEL_LAYOUT_RGBA);
@@ -122,10 +122,10 @@ scoped_refptr<GLSurface> CreateOffscreenGLSurfaceWithFormat(
     case kGLImplementationEGLGLES2:
       if (GLSurfaceEGL::IsEGLSurfacelessContextSupported() &&
           size.width() == 0 && size.height() == 0) {
-        NV_LOG2("CreateOffscreenGLSurfaceWithFormat: Using EGLGLES2 SurfacelessEGL implementation");
+        NV_LOG("CreateOffscreenGLSurfaceWithFormat: Using EGLGLES2 SurfacelessEGL implementation");
         return InitializeGLSurfaceWithFormat(new SurfacelessEGL(size), format);
       } else {
-        NV_LOG2("CreateOffscreenGLSurfaceWithFormat: Using EGLGLES2 PbufferGLSurfaceEGL implementation");
+        NV_LOG("CreateOffscreenGLSurfaceWithFormat: Using EGLGLES2 PbufferGLSurfaceEGL implementation");
         return InitializeGLSurfaceWithFormat(new PbufferGLSurfaceEGL(size),
                                              format);
       }

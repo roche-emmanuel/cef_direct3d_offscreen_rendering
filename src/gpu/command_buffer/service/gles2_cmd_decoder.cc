@@ -3119,12 +3119,12 @@ GLES2Decoder* GLES2Decoder::Create(
     CommandBufferServiceBase* command_buffer_service,
     ContextGroup* group) {
   if (group->gpu_preferences().use_passthrough_cmd_decoder) {
-    NV_LOG2("Creating GLES2DecoderPassthroughImpl instance.");
+    NV_LOG("Creating GLES2DecoderPassthroughImpl instance.");
     return new GLES2DecoderPassthroughImpl(client, command_buffer_service,
                                            group);
   }
 
-  NV_LOG2("Creating GLES2DecoderImpl instance.");
+  NV_LOG("Creating GLES2DecoderImpl instance.");
   return new GLES2DecoderImpl(client, command_buffer_service, group);
 }
 
@@ -3213,8 +3213,8 @@ bool GLES2DecoderImpl::Initialize(
   DCHECK(context->IsCurrent(surface.get()));
   DCHECK(!context_.get());
 
-  NV_LOG2("Initializing GLES2Decoder");
-  // NV_LOG2("Initializing GLES2Decoder at stacktrace: "<< base::debug::StackTrace().ToString());
+  NV_LOG("Initializing GLES2Decoder");
+  // NV_LOG("Initializing GLES2Decoder at stacktrace: "<< base::debug::StackTrace().ToString());
 
   surfaceless_ = surface->IsSurfaceless() && !offscreen;
 
@@ -20144,7 +20144,7 @@ void nvDraw(uint32_t texture)
 
   // float v1 = 1.0f * (rand()/(float)RAND_MAX);
   // float v2 = 1.0f * (rand()/(float)RAND_MAX);
-  // NV_LOG2("GLES2DecoderImpl: Clearing shared handle surface with color: ("<<v1<<","<<v2<<",0.0)");
+  // NV_LOG("GLES2DecoderImpl: Clearing shared handle surface with color: ("<<v1<<","<<v2<<",0.0)");
 
   // // elapsed += 0.01;
   // // glClearColor((sin(elapsed) + 1.0f) * 0.5f, 0.0f, 0.0f, 1.0f);
@@ -20180,7 +20180,7 @@ void nvDraw(uint32_t texture)
   NV_CHECK_GL("Stage5b");
 
   // if(curBuffer == 0) {
-  //   NV_LOG2("Current buffer is 0")
+  //   NV_LOG("Current buffer is 0")
   // }
   
   GLint curIdxBuffer = 0;
@@ -20188,7 +20188,7 @@ void nvDraw(uint32_t texture)
   NV_CHECK_GL("Stage5bb");
 
   // if(curIdxBuffer == 0) {
-  //   NV_LOG2("Current index buffer is 0")
+  //   NV_LOG("Current index buffer is 0")
   // }
   
   // We bind the vertex buffer:
@@ -20262,7 +20262,7 @@ error::Error GLES2DecoderImpl::HandleNervCopyTextureToSharedHandle(
           cmd_data);
   GLuint texture_id = c.texture_id;
   void* handle = (void*)(c.shared_handle());
-  NV_LOG2("GLES2DecoderImpl: received shared handle "<<(const void*)handle<<" for source texture_id: "<<texture_id);
+  NV_LOG("GLES2DecoderImpl: received shared handle "<<(const void*)handle<<" for source texture_id: "<<texture_id);
   
   EGLDisplay egl_display = gl::GLSurfaceEGL::GetHardwareDisplay();
   if(egl_display == EGL_NO_DISPLAY) {
@@ -20272,7 +20272,7 @@ error::Error GLES2DecoderImpl::HandleNervCopyTextureToSharedHandle(
 
   // Create our render config if not created yet:
   if(nvConfig == nullptr) {
-    NV_LOG2("GLES2DecoderImpl: Creating our rendering config.");
+    NV_LOG("GLES2DecoderImpl: Creating our rendering config.");
     EGLint numConfigs = 0;
     EGLint pattribList[] =
     {
@@ -20314,7 +20314,7 @@ error::Error GLES2DecoderImpl::HandleNervCopyTextureToSharedHandle(
 
   // If we don't have our own context yet, then we create it:
   if(nvContext == EGL_NO_CONTEXT) {
-    NV_LOG2("GLES2DecoderImpl: Creating our rendering context.");
+    NV_LOG("GLES2DecoderImpl: Creating our rendering context.");
 
     // Try to retrieve the share group handle from the official context in this decoder:
     gl::GLContext* decContext = GetGLContext();
@@ -20329,25 +20329,45 @@ error::Error GLES2DecoderImpl::HandleNervCopyTextureToSharedHandle(
       return error::kNoError;
     }
 
+    // This section below is roughly reproducing the behavior observed in gpu_command_buffer_stub.cc
+
+    // We create a default offscreen surface:
+    scoped_refptr<gl::GLSurface> offscreen_surface = gl::init::CreateOffscreenGLSurface(gfx::Size());
+
+    // gl::GLSurfaceFormat surface_format = offscreen_surface->GetFormat();
+    gpu::gles2::ContextCreationAttribHelper attrib_helper = gpu::gles2::ContextCreationAttribHelper();
+
+    gl::GLContextAttribs attribs = gpu::gles2::GenerateGLContextAttribs(attrib_helper , GetContextGroup()->gpu_preferences());
+
+    // First simply try to create a new shared context the regular way:
+    scoped_refptr<gl::GLContext> testContext = gl::InitializeGLContext(new gl::GLContextEGL(sgroup), offscreen_surface.get(), attribs);
+
+    if(testContext == nullptr) {
+      NV_LOG("GLES2DecoderImpl: ERROR: Cannot create default test 1 EGL context!");
+    }
+    else {
+      NV_LOG("GLES2DecoderImpl: ERROR: Default test 1 EGL context create successfully.");
+    }
+
     // Now try to rebuild that context "manually":
-    // void* tdisplay = offscreen_surface->GetDisplay();
-    // void* tconfig = offscreen_surface->GetConfig();
+    void* tdisplay = offscreen_surface->GetDisplay();
+    void* tconfig = offscreen_surface->GetConfig();
     using namespace gl;
 
     // Check if ES3 was requested:
-    // EGLint config_renderable_type = 0;
-    // if (!eglGetConfigAttrib(tdisplay, tconfig, EGL_RENDERABLE_TYPE,&config_renderable_type)) {
-    //   NV_LOG("GLES2DecoderImpl: ERROR: Cannot retrieve renderable type from config.");
-    //   return error::kNoError;
-    // }
+    EGLint config_renderable_type = 0;
+    if (!eglGetConfigAttrib(tdisplay, tconfig, EGL_RENDERABLE_TYPE,&config_renderable_type)) {
+      NV_LOG("GLES2DecoderImpl: ERROR: Cannot retrieve renderable type from config.");
+      return error::kNoError;
+    }
 
-    // if ((config_renderable_type & EGL_OPENGL_ES3_BIT) == 0) {
-    //   NV_LOG2("GLES2DecoderImpl: support for ES3 NOT requested.");
-    // }
+    if ((config_renderable_type & EGL_OPENGL_ES3_BIT) == 0) {
+      NV_LOG("GLES2DecoderImpl: support for ES3 NOT requested.");
+    }
 
-    // if ((config_renderable_type & EGL_OPENGL_ES2_BIT) == 0) {
-    //   NV_LOG2("GLES2DecoderImpl: support for ES2 NOT requested.");
-    // }
+    if ((config_renderable_type & EGL_OPENGL_ES2_BIT) == 0) {
+      NV_LOG("GLES2DecoderImpl: support for ES2 NOT requested.");
+    }
 
     // Prepare the context attributes:
     std::vector<EGLint> context_attributes;
@@ -20355,14 +20375,14 @@ error::Error GLES2DecoderImpl::HandleNervCopyTextureToSharedHandle(
     EGLint context_client_minor_version = 0;
 
     if (GLSurfaceEGL::HasEGLExtension("EGL_KHR_create_context")) {
-      NV_LOG2("GLES2DecoderImpl: EGL_KHR_create_context is available.");
+      NV_LOG("GLES2DecoderImpl: EGL_KHR_create_context is available.");
       context_attributes.push_back(EGL_CONTEXT_MAJOR_VERSION);
       context_attributes.push_back(context_client_major_version);
 
       context_attributes.push_back(EGL_CONTEXT_MINOR_VERSION);
       context_attributes.push_back(context_client_minor_version);
     } else {
-      NV_LOG2("GLES2DecoderImpl: EGL_KHR_create_context is NOT available.");
+      NV_LOG("GLES2DecoderImpl: EGL_KHR_create_context is NOT available.");
       context_attributes.push_back(EGL_CONTEXT_CLIENT_VERSION);
       context_attributes.push_back(context_client_major_version);
 
@@ -20373,13 +20393,13 @@ error::Error GLES2DecoderImpl::HandleNervCopyTextureToSharedHandle(
     }
 
     if (GLSurfaceEGL::IsCreateContextRobustnessSupported()) {
-      NV_LOG2("GLES2DecoderImpl: context robustness is supported.");
+      NV_LOG("GLES2DecoderImpl: context robustness is supported.");
       context_attributes.push_back(EGL_CONTEXT_OPENGL_RESET_NOTIFICATION_STRATEGY_EXT);
       context_attributes.push_back(EGL_LOSE_CONTEXT_ON_RESET_EXT);
     } else {
       // At some point we should require the presence of the robustness
       // extension and remove this code path.
-      NV_LOG2("GLES2DecoderImpl: context robustness is not supported.");
+      NV_LOG("GLES2DecoderImpl: context robustness is not supported.");
     }
 
     if (!eglBindAPI(EGL_OPENGL_ES_API)) {
@@ -20388,25 +20408,25 @@ error::Error GLES2DecoderImpl::HandleNervCopyTextureToSharedHandle(
     }
 
     if (GLSurfaceEGL::IsCreateContextBindGeneratesResourceSupported()) {
-      NV_LOG2("GLES2DecoderImpl: context BindGeneratesResource is supported.");
+      NV_LOG("GLES2DecoderImpl: context BindGeneratesResource is supported.");
       context_attributes.push_back(EGL_CONTEXT_BIND_GENERATES_RESOURCE_CHROMIUM);
       context_attributes.push_back(EGL_TRUE);
       // context_attributes.push_back(EGL_FALSE);
     } else {
-      NV_LOG2("GLES2DecoderImpl: context BindGeneratesResource is NOT supported.");
+      NV_LOG("GLES2DecoderImpl: context BindGeneratesResource is NOT supported.");
     }
 
     if (GLSurfaceEGL::IsCreateContextWebGLCompatabilitySupported()) {
-      NV_LOG2("GLES2DecoderImpl: context WebGLCompatability is supported.");
+      NV_LOG("GLES2DecoderImpl: context WebGLCompatability is supported.");
       context_attributes.push_back(EGL_CONTEXT_WEBGL_COMPATIBILITY_ANGLE);
       // context_attributes.push_back(EGL_TRUE);
       context_attributes.push_back(EGL_FALSE);
     } else {
-      NV_LOG2("GLES2DecoderImpl: context WebGLCompatability is NOT supported.");
+      NV_LOG("GLES2DecoderImpl: context WebGLCompatability is NOT supported.");
     }
     
     if (GLSurfaceEGL::IsEGLContextPrioritySupported()) {
-      NV_LOG2("GLES2DecoderImpl: context Priority is supported.");
+      NV_LOG("GLES2DecoderImpl: context Priority is supported.");
       // Medium priority is the default, only set the attribute if
       // a different priority is requested.
       
@@ -20417,16 +20437,16 @@ error::Error GLES2DecoderImpl::HandleNervCopyTextureToSharedHandle(
     }
     
     if (GLSurfaceEGL::HasEGLExtension("EGL_ANGLE_display_texture_share_group")) {
-      NV_LOG2("GLES2DecoderImpl: context EGL_ANGLE_display_texture_share_group is supported.");
+      NV_LOG("GLES2DecoderImpl: context EGL_ANGLE_display_texture_share_group is supported.");
       context_attributes.push_back(EGL_DISPLAY_TEXTURE_SHARE_GROUP_ANGLE);
       // context_attributes.push_back(EGL_TRUE);
       context_attributes.push_back(EGL_FALSE);
     } else {
-      NV_LOG2("GLES2DecoderImpl: context EGL_ANGLE_display_texture_share_group is NOT supported.");
+      NV_LOG("GLES2DecoderImpl: context EGL_ANGLE_display_texture_share_group is NOT supported.");
     }
     
     if (GLSurfaceEGL::HasEGLExtension("EGL_ANGLE_create_context_client_arrays")) {
-      NV_LOG2("GLES2DecoderImpl: context EGL_ANGLE_create_context_client_arrays is supported.");
+      NV_LOG("GLES2DecoderImpl: context EGL_ANGLE_create_context_client_arrays is supported.");
       // Disable client arrays if the context supports it
       context_attributes.push_back(EGL_CONTEXT_CLIENT_ARRAYS_ENABLED_ANGLE);
       context_attributes.push_back(EGL_FALSE);
@@ -20443,46 +20463,47 @@ error::Error GLES2DecoderImpl::HandleNervCopyTextureToSharedHandle(
     EGLint contextAttribs[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE, EGL_NONE};
 
     // Check that the display is the one we would expect:
-    // if(egl_display != tdisplay) {
-    //   NV_LOG("GLES2DecoderImpl: Mismatch on context displays!");
-    // }
+    if(egl_display != tdisplay) {
+      NV_LOG("GLES2DecoderImpl: Mismatch on context displays!");
+    }
 
     // If we have a share group, then we can try to create our context from it:
-    NV_LOG2("GLES2DecoderImpl: trying to create shared context with share group and nvConfig...");
+    NV_LOG("GLES2DecoderImpl: trying to create shared context with share group and nvConfig...");
     nvContext = eglCreateContext(egl_display, nvConfig, sgroup->GetHandle(), context_attributes.data());
     // nvContext = eglCreateContext(egl_display, nvConfig, sgroup->GetHandle(), contextAttribs);
     // nvContext = eglCreateContext(egl_display, nvConfig, nullptr, contextAttribs);
     // nvContext = eglCreateContext(egl_display, nvConfig, curContext, contextAttribs);
     if(nvContext == EGL_NO_CONTEXT) {
       NV_LOG("GLES2DecoderImpl: ERROR: Cannot create EGL rendering context with nvConfig: "<< ui::GetLastEGLErrorString());
-      return error::kNoError;
+      // return error::kNoError;
       // nvContext = curContext; // We use the current context in that case. // doesn't really work ?
       
       // Try to create the config with the proper config:
-      // nvContext = eglCreateContext(egl_display, tconfig, sgroup->GetHandle(), context_attributes.data());
+      nvContext = eglCreateContext(egl_display, tconfig, sgroup->GetHandle(), context_attributes.data());
     }
 
     // Try to create the context again with the provided config:
-    // if(nvContext == EGL_NO_CONTEXT) {
-    //   NV_LOG("GLES2DecoderImpl: ERROR: Cannot create EGL rendering context with tconfig: "<< ui::GetLastEGLErrorString());
+    if(nvContext == EGL_NO_CONTEXT) {
+      NV_LOG("GLES2DecoderImpl: ERROR: Cannot create EGL rendering context with tconfig: "<< ui::GetLastEGLErrorString());
 
-    //   // Try with the tdisplay:
-    //   nvContext = eglCreateContext(tdisplay, tconfig, sgroup->GetHandle(), context_attributes.data());
-    // }
+      // Try with the tdisplay:
+      nvContext = eglCreateContext(tdisplay, tconfig, sgroup->GetHandle(), context_attributes.data());
+    }
 
-    // if(nvContext == EGL_NO_CONTEXT) {
-    //   NV_LOG("GLES2DecoderImpl: ERROR: Cannot create EGL rendering context with tdisplay: "<< ui::GetLastEGLErrorString());
+    if(nvContext == EGL_NO_CONTEXT) {
+      NV_LOG("GLES2DecoderImpl: ERROR: Cannot create EGL rendering context with tdisplay: "<< ui::GetLastEGLErrorString());
 
-    //   // Try using the default current config:
-    //   nvContext = curContext;
-    // }
+      // Try using the default test config:
+      nvContext = testContext->GetHandle();
+    }
+
   }
 
   // First we should create the EGLSurface for this handle if it doesn't exist yet:
   // cf. https://github.com/Microsoft/angle/wiki/Interop-with-other-DirectX-code
 
   if(gSurfaces.count(handle)==0) {
-    NV_LOG2("GLES2DecoderImpl: Creating EGLSurface for handle "<<(const void*)handle);
+    NV_LOG("GLES2DecoderImpl: Creating EGLSurface for handle "<<(const void*)handle);
     EGLSurface surface = EGL_NO_SURFACE;
 
     EGLint pBufferAttributes[] =
@@ -20491,17 +20512,19 @@ error::Error GLES2DecoderImpl::HandleNervCopyTextureToSharedHandle(
         EGL_HEIGHT, 1080,
         EGL_NONE
     };
+        // EGL_TEXTURE_TARGET, EGL_TEXTURE_2D,
+        // EGL_TEXTURE_FORMAT, EGL_TEXTURE_RGBA,
 
-    NV_LOG2("GLES2DecoderImpl: Calling CreatePBufferFromClientBuffer().");
+    NV_LOG("GLES2DecoderImpl: Calling CreatePBufferFromClientBuffer().");
     surface = eglCreatePbufferFromClientBuffer(egl_display, EGL_D3D_TEXTURE_2D_SHARE_HANDLE_ANGLE, handle, nvConfig, pBufferAttributes);
-    NV_LOG2("GLES2DecoderImpl: Done calling CreatePBufferFromClientBuffer().");
+    NV_LOG("GLES2DecoderImpl: Done calling CreatePBufferFromClientBuffer().");
 
     if (surface == EGL_NO_SURFACE)
     {
       NV_LOG("GLES2DecoderImpl: ERROR: Cannot create EGL shared surface: "<< ui::GetLastEGLErrorString());
     }
     else {
-      NV_LOG2("GLES2DecoderImpl: Successfully created EGL shared surface!");
+      NV_LOG("GLES2DecoderImpl: Successfully created EGL shared surface!");
       
       // store the surface for the given handle:
       gSurfaces[handle] = surface;
@@ -20544,27 +20567,36 @@ error::Error GLES2DecoderImpl::HandleNervCopyTextureToSharedHandle(
   
   // init the context if necessary:
   if(program == 0) {
-    NV_LOG2("GLES2DecoderImpl: Initializing context resources.")
+    NV_LOG("GLES2DecoderImpl: Initializing context resources.")
     nvInitContext();
   }
 
   // Convert the client texture_id to our service texture_id:
   uint32_t service_tex_id=0;
   if(GetServiceTextureId(texture_id, &service_tex_id)) {
-    NV_LOG2("GLES2DecoderImpl: Drawing from service texture_id: "<<service_tex_id);
+    NV_LOG("GLES2DecoderImpl: Drawing from service texture_id: "<<service_tex_id);
     nvDraw(service_tex_id);
   }
   else {
     NV_LOG("GLES2DecoderImpl: ERROR: Cannot retrieve service texture for client id: "<<texture_id);
   }
 
+  // float v1 = 1.0f * (rand()/(float)RAND_MAX);
+  // float v2 = 1.0f * (rand()/(float)RAND_MAX);
+  // NV_LOG("GLES2DecoderImpl: Clearing shared handle surface with color: ("<<v1<<","<<v2<<",0.0)");
+
+  // First we try to just display some fixed color (red):
+  // glViewport(0, 0, 1920, 1080);
+  // glClearColor(v1, v2, 0.0f, 1.0f);
+  // glClear(GL_COLOR_BUFFER_BIT);
+
   // Now that we are done, we restore the previous current context/surfaces:
   eglMakeCurrent(display, drawSurface, readSurface, curContext);
   
   // When done we should delete our source texture directly:
-  NV_LOG2("GLES2DecoderImpl: Deleting texture with client id="<<texture_id<<" (service_id="<<service_tex_id<<")");
+  NV_LOG("GLES2DecoderImpl: Deleting texture with client id="<<texture_id<<" (service_id="<<service_tex_id<<")");
   DeleteTexturesHelper(1, &texture_id);
-  NV_LOG2("GLES2DecoderImpl: Done copying to shared handle surface.");
+  NV_LOG("GLES2DecoderImpl: Done copying to shared handle surface.");
 
   return error::kNoError;
 }

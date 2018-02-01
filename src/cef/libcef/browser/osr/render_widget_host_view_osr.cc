@@ -151,7 +151,7 @@ class CefCopyFrameGenerator {
     }
 
     if (result->HasTexture()) {
-      DEBUG_MSG2("NervCEF: CompositingSurface has texture!");
+      DEBUG_MSG("NervCEF: CompositingSurface has texture!");
       PrepareTextureCopyOutputResult(damage_rect, std::move(result));
       return;
     }
@@ -169,77 +169,47 @@ class CefCopyFrameGenerator {
                     weak_ptr_factory_.GetWeakPtr(), damage_rect));
 
     const gfx::Size& result_size = result->size();
-    DEBUG_MSG2("Texture size is: "<<result_size.width()<<"x"<<result_size.height());
+    DEBUG_MSG("Texture size is: "<<result_size.width()<<"x"<<result_size.height());
     
-    // Shared code: we need the gl_helper in both rendering paths:
+    // We don't allocate any SkBitmap below:
+#if 0
+    SkIRect bitmap_size;
+    if (bitmap_)
+      bitmap_->getBounds(&bitmap_size);
+
+    if (!bitmap_ || bitmap_size.width() != result_size.width() ||
+        bitmap_size.height() != result_size.height()) {
+      // Create a new bitmap if the size has changed.
+      bitmap_.reset(new SkBitmap);
+      bitmap_->allocN32Pixels(result_size.width(), result_size.height(), true);
+      if (bitmap_->drawsNothing())
+        return;
+    }
+#endif
+
     content::ImageTransportFactory* factory =
         content::ImageTransportFactory::GetInstance();
     viz::GLHelper* gl_helper = factory->GetGLHelper();
-    if (!gl_helper) {
-      DEBUG_MSG("NervCEF: ERROR: Invalid gl_helper");
+    if (!gl_helper)
       return;
-    }
 
-    // Select the appropriate rendering path depending on the shared handle being provided or not:
-    CefRefPtr<CefRenderHandler> handler = view_->browser_impl()->GetClient()->GetRenderHandler();
-    
-    if(handler.get() && handler->UseSharedHandle()) {
-      // Direct rendering on shared handle path:
+    // We do not need the pixels below:
+#if 0
+    uint8_t* pixels = static_cast<uint8_t*>(bitmap_->getPixels());
+#endif
 
-      // Prepare the texture mail box:
-      viz::TextureMailbox texture_mailbox;
-      std::unique_ptr<cc::SingleReleaseCallback> release_callback;
-      result->TakeTexture(&texture_mailbox, &release_callback);
-      DCHECK(texture_mailbox.IsTexture());
-      if (!texture_mailbox.IsTexture())
-        return;
+    viz::TextureMailbox texture_mailbox;
+    std::unique_ptr<cc::SingleReleaseCallback> release_callback;
+    result->TakeTexture(&texture_mailbox, &release_callback);
+    DCHECK(texture_mailbox.IsTexture());
+    if (!texture_mailbox.IsTexture())
+      return;
 
-      ignore_result(scoped_callback_runner.Release());
+    ignore_result(scoped_callback_runner.Release());
 
-      void* handle = handler->GetSharedHandle();
-      if(handle == nullptr) {
-        DEBUG_MSG("NervCEF: ignoring null shared handle.");
-        OnCopyFrameCaptureCompletion(false);
-        return;    
-      }
-
-      // Here we call another function to copy the texture to the shared handle:
-      DEBUG_MSG2("NervCEF: using shared handle: "<<(const void*)handle);
-
-      gl_helper->NervCopyMailboxToSharedHandle(texture_mailbox.mailbox(), texture_mailbox.sync_token(), handle);
-      OnCopyFrameCaptureCompletion(false);
-    }
-    else{
-      // Regular on CPU rendering path:
-
-      // Allocate the Skia bitmap:
-      SkIRect bitmap_size;
-      if (bitmap_)
-        bitmap_->getBounds(&bitmap_size);
-
-      if (!bitmap_ || bitmap_size.width() != result_size.width() ||
-          bitmap_size.height() != result_size.height()) {
-        // Create a new bitmap if the size has changed.
-        bitmap_.reset(new SkBitmap);
-        bitmap_->allocN32Pixels(result_size.width(), result_size.height(), true);
-        if (bitmap_->drawsNothing())
-          return;
-      }
-        
-      // Retrieve the pixel buffer:
-      uint8_t* pixels = static_cast<uint8_t*>(bitmap_->getPixels());
-
-      // Prepare the texture mail box:
-      viz::TextureMailbox texture_mailbox;
-      std::unique_ptr<cc::SingleReleaseCallback> release_callback;
-      result->TakeTexture(&texture_mailbox, &release_callback);
-      DCHECK(texture_mailbox.IsTexture());
-      if (!texture_mailbox.IsTexture())
-        return;
-
-      ignore_result(scoped_callback_runner.Release());
-
-      gl_helper->CropScaleReadbackAndCleanMailbox(
+    // We don't call CropScaleReadback method here:
+#if 0
+    gl_helper->CropScaleReadbackAndCleanMailbox(
         texture_mailbox.mailbox(), texture_mailbox.sync_token(), result_size,
         gfx::Rect(result_size), result_size, pixels, kN32_SkColorType,
         base::Bind(
@@ -247,7 +217,33 @@ class CefCopyFrameGenerator {
             weak_ptr_factory_.GetWeakPtr(), base::Passed(&release_callback),
             damage_rect, base::Passed(&bitmap_)),
         viz::GLHelper::SCALER_QUALITY_FAST);
+#endif
+
+    CefRefPtr<CefRenderHandler> handler = view_->browser_impl()->GetClient()->GetRenderHandler();
+    if(!handler.get()) {
+      DEBUG_MSG("NervCEF: Invalid render handler: not performing texture copy.");
+      OnCopyFrameCaptureCompletion(false);
+      return;
     }
+
+    if(!handler->UseSharedHandle()) {
+      DEBUG_MSG("NervCEF: Not using shared handle.");
+      OnCopyFrameCaptureCompletion(false);
+      return;
+    }
+    
+    void* handle = handler->GetSharedHandle();
+    if(handle == nullptr) {
+      DEBUG_MSG("NervCEF: ignoring null shared handle.");
+      OnCopyFrameCaptureCompletion(false);
+      return;    
+    }
+
+    // Here we call another function to copy the texture to the shared handle:
+    DEBUG_MSG("NervCEF: using shared handle: "<<(const void*)handle);
+
+    gl_helper->NervCopyMailboxToSharedHandle(texture_mailbox.mailbox(), texture_mailbox.sync_token(), handle);
+    OnCopyFrameCaptureCompletion(false);
   }
 
   static void CopyFromCompositingSurfaceFinishedProxy(

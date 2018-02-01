@@ -22,7 +22,7 @@ struct CefLogHandler {
 void setLogHandler(CefLogHandler* handler);
 
 // Function used to actually log a message:
-void handleLogMessage(unsigned int level, const std::string& msg);
+void handleLogMessage(const std::string& msg);
 
 };
 
@@ -31,14 +31,7 @@ void handleLogMessage(unsigned int level, const std::string& msg);
     std::ostringstream os; \
     os.precision(9); \
     os << std::fixed << msg; \
-    cef::handleLogMessage(1, os.str()); \
-}
-
-#define DEBUG_MSG2(msg) { \
-    std::ostringstream os; \
-    os.precision(9); \
-    os << std::fixed << msg; \
-    cef::handleLogMessage(2, os.str()); \
+    cef::handleLogMessage(os.str()); \
 }
 
 #endif  // CEF_LIBCEF_LOG_HANDLER_H_
